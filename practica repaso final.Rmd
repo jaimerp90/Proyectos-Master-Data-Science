@@ -1,0 +1,725 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+
+library(openintro)
+
+data(email)
+
+email
+
+```
+
+```{r}
+
+dim(email)
+
+# Tenemos un dataset con 21 variables y 3921 filas
+```
+
+1 -  Variables categoricas binomiales: to_multiple, from, sent_email, image,  winner, format, re_subj, exclaim_subj, urgent_subj.
+Variables categoricas ordinales: number.
+
+2 - variables cuantitativas: cc, time, attach, dollar, password, num_char, line_breaks, exclaim_mess
+
+
+
+
+```{r}
+
+write.csv(x = email, file = "email.csv", row.names = FALSE, col.names = TRUE)
+```
+
+
+
+
+
+```{r}
+
+sum(is.na(email))
+
+# el dataset no contiene valores nulos.
+
+```
+
+
+La variable dependiente a predecir es spam, en el que se recoge si un mail va a la bandeja de spam del correo del destinatario, o por el contrario va a la bandeja de recibidos.
+
+Se trata de una variable categorica bonimial: (0 - NO / 1 - SI)
+
+
+```{r}
+
+library(summarytools)
+
+table(email$spam)
+
+freq(email$spam, style = "rmarkdown")
+
+```
+
+Podemos ver en esta tabla de frecuencias de los 3921 mails analizados, 3554(90.64%) son catalogados como NO spam(en caso de que 0 sea que no) y 367 (9.36%) son catalogados como si spam. No tenemos valores nulos en esta variable.
+
+
+## Vamos a comenzar analizando las variables cuantitativas
+
+# CC
+
+
+```{r}
+summary(email$cc)
+```
+¿ Cuanta gente suele ir en copia en estos correos?
+
+Vamos a realizar un histograma y un grafico de bigotes
+
+```{r}
+
+library(ggplot2)
+
+ggplot(email, aes(cc)) + geom_bar() 
+
+# Podemos ver como la gran mayoria de los mails NO van con nadie en copia
+
+```
+```{r}
+
+ctable(email$cc, email$spam)
+
+# lo mas destacable de esta tabla es que se declaran un 36.4% de correos spam, aquellos que tienen 4 personas en copia
+
+
+```
+
+Vamos a conbvertir esta variable en binaria, entre los que si van en copia y los que no.
+
+
+```{r}
+email <- email %>%
+  mutate(cc_binary = ifelse(cc == 0,0,1))
+
+ctable(email$cc_binary, email$spam)
+```
+
+
+
+# attach 
+
+Cuantos documentos adjuntos suelen llevar estos mails ??
+
+```{r}
+
+table(email$attach)
+
+
+```
+
+```{r}
+summary(email$attach)
+```
+
+```{r}
+
+ggplot(email, aes(attach)) + geom_histogram()
+
+# Podemos ver como la gran mayoria de correos no llevan ningun dato adjunto
+
+```
+
+```{r}
+library(summarytools)
+
+ctable(email$attach, email$spam)
+
+# En esta tabla podemos observar o destacar que los correos que tienen dos documentos adjuntos son catalogados como spam en un 40% de las veces y cuando tiene 3 o mas 
+```
+Vamos a convertir esta variable en binaria, de tal forma que los correos que NO lleven adjunto será un 0 y los que si un 1
+
+
+
+```{r}
+
+email <- email %>%
+  mutate(attach_binary = ifelse(attach == 0,0,1))
+
+head(email)
+
+ctable(email$attach_binary, email$spam)
+
+
+
+```
+Podemos ver como el 15.5% de los correos que contiene algun adjunto es catalogado como spam.
+
+# dollar 
+
+Variable que recoge las veces que aparece el simbolo dolar.
+
+```{r}
+
+summary(email$dollar)
+
+```
+
+```{r}
+
+ggplot(email, aes(dollar)) + geom_histogram()
+
+```
+
+```{r}
+
+ctable(email$dollar, email$spam)
+
+# El rango que va de las 0 veces a las 9, es el que presenta una mayor declaracion de correos como spam, mientras que los correos que contienen dollar 10 o mas veces a penas son declarados como spam. Por ello vamos a dumificar esta variable
+
+```
+```{r}
+
+email <- email %>% 
+  mutate(dollar_binned = if_else(dollar >=  10, "10+", if_else(dollar <= 9, "0-10", "0-10")))
+
+ctable(email$dollar_binned, email$spam)
+
+ggplot(email, aes(dollar_binned, fill = spam)) + geom_bar(position = "fill")
+```
+
+
+
+
+
+# password
+
+Cuantas veces se repite la palabra password dentro de una correo electronico
+
+
+```{r}
+
+table(email$password)
+
+
+```
+```{r}
+
+ctable(email$password, email$spam)
+
+# No hay ningun valor que destaque sobre otro, no parece muy indicativa esta variable 
+
+```
+Vamos a convertir la variable password en binaria, 0 - ninguna / 1 - alguna vez
+
+```{r}
+
+email <- email %>%
+  mutate(password_binary = ifelse(password == 0,0,1))
+
+ctable(email$password_binary, email$spam)
+
+```
+En un 9.5% de los casos en los que no aparece la palabra password se declara como spam y solo un 3.6% cuando aparece alguna vez la palabra password.
+
+
+# num_char
+
+¿Son determinantes los caracteres a la hora de establecer un correo como spam?
+
+```{r}
+summary(email$num_char)
+```
+
+```{r}
+ggplot(email, aes(num_char)) + geom_histogram()
+
+
+```
+
+```{r}
+
+ggplot(email, aes(x = num_char, y = spam)) + geom_boxplot()
+
+# Vemos claramente que los mails declarados como spam suelen ser los que tienen un numero de caracteres menores.
+
+
+```
+
+# line_breaks - saltos de linea
+
+¿ Los saltos de liena son determinantes a la hora de declarar un correo como spam?
+
+
+```{r}
+summary(email$line_breaks)
+```
+
+```{r}
+ggplot(email, aes(line_breaks)) + geom_histogram()
+
+# la mayoria de correos tienen  entre 0 y 250 saltos de linea
+
+```
+```{r}
+
+ggplot(email, aes(x= line_breaks, y = spam)) + geom_boxplot()
+
+# Los mail que se declaran como spam son los que menos saltos de liena tienen.
+
+```
+
+# exclaim_mess 
+
+```{r}
+
+ggplot(email, aes(exclaim_mess)) + geom_histogram()
+
+```
+
+```{r}
+ggplot(email, aes(x = exclaim_mess, y = spam)) +geom_boxplot()
+```
+```{r}
+
+ctable(email$exclaim_mess, email$spam)
+
+# Como se observa en el disgrama de biogotes y en esta tabla, son los correos con menos exclamaciones, los que son marcados como spam
+
+```
+
+Vamos ahora a analizar las variables categoricas.
+
+# to_multiple
+
+
+Vamos a ver primero, del total de correos analizados, cuantos se envian a multiples personas y cuantos no
+
+```{r}
+
+freq(email$to_multiple, style = "rmarkdown")
+
+# del total de correos el 84% NO se envian a multiples personas y si el 16%
+
+```
+
+
+
+influye que el correo se envie a multiples personas a la vvez, para declararlo como spam ??
+
+```{r}
+
+ctable(email$to_multiple, email$spam)
+
+# Vemos que el 11% de los correos que no son multiples, son declarados como spam
+
+```
+```{r}
+
+# vamos a ver un grafico de esta comparacion en terminos absolutos
+
+ggplot(email, aes(to_multiple, fill = spam)) + geom_bar()
+```
+
+```{r}
+# Vamos a ver una comparacion entre ambas variables, en terminos relativos
+
+ggplot(email, aes(to_multiple, fill = spam)) + geom_bar(position = "fill")
+```
+
+## from
+
+¿DE donde proviene el correo, cuantos correos tienen un origen y cuantos no??
+
+
+```{r}
+freq(email$from, style = "rmarkdown")
+
+# la inmensa mayoria tienen un origen del correo, solo el 0.077% no tienen origen.
+```
+```{r}
+
+ctable(email$from, email$spam)
+
+# Vemos que el 100% de los correos que NO tiene un origen definido son delcarados como spam, aunque cierto es que son muy pocos, los que se envian de esta manera, no obstante, vamos a mantener esta variable ya que es muy significativa.
+```
+
+# sent_email 
+
+¿ del total de mails, cuantos son enviados y cuantos no?
+
+```{r}
+
+freq(email$sent_email, style = "rmarkdown")
+
+
+
+```
+```{r}
+ctable(email$sent_email, email$spam)
+
+```
+# image - imagen
+
+Cuantos correos del total analizados tienen imagen y cuantos no
+
+
+```{r}
+freq(email$image, style = "rmarkdown")
+
+# la gran mayoria de los correos no contienen imagenes
+
+```
+Influye el numero de imagenes a la hora de declarar un correo como spam??
+
+```{r}
+ctable(email$image, email$spam)
+
+# El 10% de los correos que contienen 0 imagenes son declarados spam y solo el 2.5% de los que contienen 1 imagen.
+# No disponemos de suficientes correos que contengan varias imagenes, como para determinar si es spma o no. 
+# Podemos crear una variable que sea contiene imagen? si - no
+
+
+```
+
+# WINNER
+
+Cuantas veces aparece la palabra ganador y cuantas no ¿¿?
+
+
+```{r}
+
+summary(email$winner)
+
+# No aparece 3857 y si aparece en 64 veces
+
+```
+
+```{r}
+
+freq(email$winner, style = "rmarkdown")
+
+# solo aparece la palabra winner en 1.6% de los casos de este dataset
+```
+
+Influye la palabra winner a la hora de declarar un correo como spam
+
+```{r}
+ctable(email$winner, email$spam)
+
+# el 31% de las veces que aparece la palabra winner se declara el correo como spam
+
+```
+
+vamos a ver un grafico de esto en valores absolutos
+
+```{r}
+
+ggplot(email, aes(winner, fill =  spam)) + geom_bar()
+
+```
+
+vamos a ver un grafico en terminos relativos
+
+```{r}
+
+ggplot(email, aes(winner, fill =  spam)) + geom_bar(position = "fill")
+
+```
+
+# inherit - heredar
+
+```{r}
+
+summary(email$inherit)
+table(email$inherit)
+```
+
+Vamos a ver el numero de veces que se repite la palabra heredar(inherit)
+
+```{r}
+freq(email$inherit, style = "rmarkdown")
+
+```
+
+```{r}
+ctable(email$inherit, email$spam)
+```
+
+# viagra
+
+```{r}
+
+
+unique(email$viagra)
+```
+Del total de correos analizados, cuantos contienen la palabra viagra y cuantos no
+
+
+```{r}
+
+freq(email$viagra, style = "rmarkdown")
+
+# vemos que la palabra viagra NO aparece en el 99.974 de los casos y si aparece una sola vez repetida en 8 ocasiones en el mismo mail.
+
+# aunque hicieramos la ctable para ver si influye la apareicion de la palabra viagra 8 veces en los correos y saliese un 100%, no seria relevante, ya que solo tenemos un caso, por lo que esta variable tenemos que descartarla
+```
+# password
+
+Cuantas veces aparece la palabra password repetida en estos  correos
+
+
+```{r}
+
+freq(email$password, style = "rmarkdown")
+
+# no suele aparecer la palabra password
+
+```
+```{r}
+ggplot(email, aes(password)) + geom_histogram()
+```
+Influye la aparicion de la palabra password a la hora de determinar un correo como spam
+
+```{r}
+
+ctable(email$password, email$spam)
+
+```
+
+
+Creamos una variable dependiente binaria
+
+
+```{r}
+library(tidyverse)
+
+email <- email %>%
+  mutate(password_binary = ifelse(password == 0,0,1))
+
+head(email)
+
+
+```
+
+```{r}
+ctable(email$password_binary, email$spam)
+
+# Solo el 3.6% de los casos en los que aparece la palabra password se declara el correo como spam, por lo que no parece que influya mucho esta palabra en los correos spam. La podemos descartar
+
+```
+# format 
+
+Cuantos correos tienen formato y cuantos no lo tienen
+
+```{r}
+freq(email$format, style = "rmarkdown")
+
+# El 30.5 de los correos no tienen formato y el 69.5% si lo tienen
+```
+```{r}
+pie(table(email$format))
+
+```
+Influye que los correos tengan formato a la hora de declararlos como spam??
+
+```{r}
+
+ctable(email$format, email$spam)
+
+# Los correos que NO tienen formato son mas propensos a ser declarados como spam 17.5% frente a un 5.8% de los que si tienen formato
+
+
+```
+
+```{r}
+
+ggplot(email, aes(format, fill = spam)) + geom_bar()
+
+
+```
+
+Vamos a ver el grafico en terminos relativos
+
+```{r}
+ggplot(email, aes(format, fill = spam)) + geom_bar(position = "fill")
+
+# Se ve claramente como el no tener formato es un factor decisivo a la hora de declarar un correo como spam
+```
+# re_subj
+
+```{r}
+summary(email$re_subj)
+
+unique(email$re_subj)
+```
+Cuantas veces tenemos re_subj y cuantos no en estos correos
+
+```{r}
+ctable(email$re_subj, email$spam)
+ggplot(email, aes(re_subj, fill = spam)) + geom_bar(position = "fill")
+
+```
+
+Son declarados como spam mayoritariamente los correos que NO tiene r_subj, en concreto un 12%.
+
+# exclaim_subj
+
+```{r}
+ctable(email$exclaim_subj, email$spam)
+ggplot(email, aes(exclaim_subj, fill = spam)) + geom_bar(position = "fill")
+```
+
+Parece que los correos exclaim y los que no lo tienen, son declarados como spam en la misma proporcion (9.3 - 9.5), por lo que no parece que sea una variable determinante a la hora de diferenciar entre spam y no spam
+
+
+
+# urgent_subj
+
+```{r}
+freq(email$urgent_subj, style = "rmarkdown")
+
+ctable(email$urgent_subj, email$spam)
+ggplot(email, aes(urgent_subj, fill = spam)) + geom_bar(position = "fill")
+```
+
+Solo tenemos 7 correos que son urgent_subj, lo que supone un 0.18%. Eso si el 57% de estos(4) son declarados spam, frente al 43%(3) que no lo son. El porcentaje de casos no urgent_subj, no es muy representativo, pero vamos a mantener esta vaariable.
+
+# time
+
+De la variable time vamos a obtener los meses, por si hubiera algun mes en el que se declaren mas correos como spam.
+
+```{r}
+
+# vamos a ver el tipo de dato que es la variable date
+
+class(email$time)
+
+```
+
+```{r}
+email$time <-  as.Date(email$time,'%d/%m/%Y')
+
+class(email$time)
+
+```
+```{r}
+
+email$mes <-  format(as.Date(email$time), "%m")
+
+# ya tenemos una nueva colunmna con los meses en los que se envian los correos
+```
+
+Vamos a ver en que meses se envian mas correos y si estos influyen a la hora de establecer un correo como spam
+
+```{r}
+freq(email$mes, style = "rmarkdown")
+
+ctable(email$mes, email$spam)
+ggplot(email, aes(email$mes, fill = spam)) + geom_bar(position = "fill")
+```
+
+En este conjunto de datos solo tenemos informacion de correos enviados de Enero - Abril en proporcion de un 33% los tres primeros meses y de un 1% el mes de Abril.
+
+Los mails declarados como spam se reparten entre los 3 primeros meses, de forma bastante homogenea, no parece muy significativa esta variable.
+
+
+
+# number
+
+¿Con que frecuencia aparecen los numeros grandes, pequeños o no hay numeros, en estos correos?
+
+```{r}
+
+library(summarytools)
+summary(email$number)
+freq(email$number, style= "rmarkdown")
+```
+
+Influye que haya numeros o su tamaño a la hora de catalogar el correo como spam??
+
+```{r}
+library(ggplot2)
+
+ctable(email$number, email$spam)
+
+ggplot(email, aes(x = number, fill = spam)) + geom_bar(position = "fill")
+
+```
+
+Podemos observar que cuando no hay numeros en los correos, la posibilidad de catalogar el correo como spam se dispara a un 27%, mientras que cuando los hay pequeños es de un 6% y grandes de un 9%
+
+
+## Analisis bidimensional
+
+Vamos a analizar si las variables cuantitativas estan correlacionadas entre ellas, de ser asi, habria que eliminarlas:
+
+cc, num_chart, line_breaks
+
+
+
+```{r}
+
+library(tidyverse)
+library(corrplot)
+
+email %>% select(cc, num_char, line_breaks) %>% 
+  cor() %>% 
+  corrplot(method = "number",
+           type = "upper",
+           tl.cex = 0.8,
+           tl.srt = 45,
+           tl.col = "black")
+
+
+
+
+```
+
+El numero de caracteres del correo y el de saltos de linea estan altamente correlacionados (0.96), vamos a mantenerlos de momento
+
+
+
+# Conclusion.
+
+1 - Variables a eliminar: time, exclaim_subj, viagra, 
+
+2 - variables que nos quedamos: password_binary, dollar_binnes, attach_binary, to_multiple, from, cc, sent_email, image, winner, inherit, num_chart, line_breaks, format, re_subj urgent_subj, exclaim_mess, number
+
+
+3 - Se han modificado 3 variables (password_binary, dollar_binnes, attach_binary), dejandolas como binarias, aunque deberian haber sido mas...
+
+
+# vamos a eliminar las variables que no correspondan:
+
+```{r}
+
+email <- subset( email, select = -c(time, exclaim_subj, viagra,password, dollar, attach ) )
+
+
+head(email)
+
+```
+
+Vamos a convertir a las variables categoricas en variables factores ordenadas
+
+```{r}
+email$attach_binary = factor(email$attach_binary, order = TRUE, levels = c(0,1))
+
+email$dollar_binned = factor(email$dollar_binned, order = TRUE, levels = c("0-10", "10+"))
+
+email$password_binary = factor(email$password_binary, order = TRUE, levels = c(0, 1))
+
+
+```
+
+
+
+## Aqui terminamos el analisis descriptivo de este dataset y tenemos que comenzar con el analisis predictivo.
+
+
+```{r}
+modelo = glm(spam~ password_binary, dollar_binnes, attach_binary, data = email)
+
+summary(modelo)
+```
+
